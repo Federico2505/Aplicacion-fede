@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Organizer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      text-align: center;
+      background-color: #f4f4f4;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      color: #333;
+    }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: white;
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+<h2>Task Organizer</h2>
+<input type="text" id="taskTitle" placeholder="Enter task title" required>
+<input type="datetime-local" id="taskDate" required>
+<button onclick="addTask()">Add Task</button>
+<ul id="taskList"></ul>
+
+<script>
+  let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+  function addTask() {
+    const title = document.getElementById("taskTitle").value.trim();
+    const dateTime = new Date(document.getElementById("taskDate").value);
+    if (!title || isNaN(dateTime.getTime())) {
+      alert("Please enter a valid task and date/time.");
+      return;
+    }
+
+    const task = { title, dateTime: dateTime.getTime() };
+    tasks.push(task);
+    saveTasks();
+    displayTasks();
+    scheduleNotification(task);
+    document.getElementById("taskTitle").value = "";
+    document.getElementById("taskDate").value = "";
+  }
+
+  function saveTasks() {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }
+
+  function displayTasks() {
+    const taskList = document.getElementById("taskList");
+    taskList.innerHTML = "";
+    const now = Date.now();
+    tasks = tasks.filter(task => task.dateTime > now);
+    saveTasks();
+    tasks.forEach((task, index) => {
+      const li = document.createElement("li");
+      li.textContent = `${task.title} - ${new Date(task.dateTime).toLocaleString()}`;
+      taskList.appendChild(li);
+    });
+  }
+
+  function scheduleNotification(task) {
+    const now = Date.now();
+    const delay = task.dateTime - now;
+    if (delay > 0) {
+      setTimeout(() => {
+        showNotification(task.title);
+      }, delay);
+    }
+  }
+
+  function showNotification(title) {
+    if (Notification.permission === "granted") {
+      new Notification("Task Reminder", { body: title });
+      speakText(title);
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          showNotification(title);
+        }
+      });
+    }
+  }
+
+  function speakText(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 1;
+    for (let i = 0; i < 2; i++) {
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, i * 3000);
+    }
+  }
+
+  displayTasks();
+</script>
+</body>
+</html>

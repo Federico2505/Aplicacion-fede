@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+  font-family: 'Roboto', sans-serif;
+  background-color: #f4f4f9;
+  margin: 0;
+  padding: 20px;
+  color: #333;
+}
+
+h1 {
+  font-family: 'Great Vibes', cursive;
+  color: #444;
+  text-align: center;
+  font-size: 3em;
+  margin-bottom: 30px;
+  letter-spacing: 1.5px;
+}
+
+.form-section {
+  background-color: #fff;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  border-left: 5px solid #007bff;
+}
+
+label {
+  display: block;
+  margin: 10px 0 5px;
+  font-size: 1em;
+  color: #555;
+  font-weight: 500;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #007bff;
+  outline: none;
+  background: #fff;
+}
+
+button {
+  padding: 12px 20px;
+  background-color: #007bff;
+  border: none;
+  color: white;
+  font-size: 1em;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+table th, table td {
+  padding: 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+table th {
+  background-color: #007bff;
+  color: white;
+  text-align: center;
+  font-weight: bold;
+}
+
+.product-actions button {
+  margin-right: 5px;
+  background-color: #28a745;
+}
+
+.product-actions button:hover {
+  background-color: #218838;
+}
+
+.notes-section {
+  margin-top: 20px;
+  font-style: italic;
+  color: #666;
+  background: #f9f9f9;
+  padding: 10px;
+  border-left: 4px solid #007bff;
+  border-radius: 5px;
+}
+
+  </style>
+</head>
+<body>
+<h1>Invoice Generator</h1>
+<div>
+    <label for="currency">Select Currency:</label>
+    <select id="currency" onchange="updateCurrencySymbol()">
+    </select>
+  </div>
+
+
+<div class="form-section">
+   <label>Logo Path: <input type="text" id="logoPath"></label><br>
+    <label> Payment link QR Code Path: <input type="text" id="qrPath"></label><br>
+  <!-- Company Information -->
+  <label for="companyName">Company Name:</label>
+  <input type="text" id="companyName" required>
+
+  <label for="companyIBAN">IBAN:</label>
+  <input type="text" id="companyIBAN">
+
+  <label for="companyID">Company Identification :</label>
+  <input type="text" id="companyID">
+
+  <label for="companyPhone">Phone Number:</label>
+  <input type="text" id="companyPhone">
+
+  <label for="companyZIP">ZIP Code:</label>
+  <input type="text" id="companyZIP">
+
+  <label for="companyAddress">Address:</label>
+  <textarea id="companyAddress"></textarea>
+
+  <!-- Client Information -->
+  <label for="clientName">Client Name:</label>
+  <input type="text" id="clientName" required>
+
+  <label for="clientPhone">Phone:</label>
+  <input type="text" id="clientPhone">
+
+  <label for="clientZIP">ZIP Code:</label>
+  <input type="text" id="clientZIP">
+
+  <label for="clientAddress">Address:</label>
+  <textarea id="clientAddress"></textarea>
+
+  <label for="clientEmail">Client Email:</label>
+  <input type="email" id="clientEmail" placeholder="Enter client email">
+
+  <!-- Invoice Details -->
+  <h3>Invoice Details</h3>
+  <label for="invoiceNumber">Invoice Number:</label>
+  <input type="text" id="invoiceNumber" placeholder="E.g., INV-2024-001">
+
+  <label for="invoiceDate">Invoice Date:</label>
+  <input type="date" id="invoiceDate">
+
+  <label for="dueDate">Due Date:</label>
+  <input type="date" id="dueDate">
+
+  <label for="tax">Tax Percentage:</label>
+  <input type="number" id="tax" step="0.01" placeholder="Enter tax    
+  percentage">
+  <input type= "text" id="taxtype" step="0.01" placeholder= "Enter type of 
+  tax">
+
+
+  <!-- Service Information -->
+  <h3>Service Information</h3>
+  <label for="serviceDescription">Description:</label>
+  <textarea id="serviceDescription"></textarea>
+
+  <label for="serviceAmount">Amount:</label>
+  <input type="number" id="serviceAmount" step="0.01" placeholder="Amount in USD">
+
+  <!-- Product Information -->
+  <h3>Product Information</h3>
+  <label for="productName">Product Name:</label>
+  <input type="text" id="productName">
+
+  <label for="productType">Product Type:</label>
+  <input type="text" id="productType">
+
+  <label for="productQuantity">Quantity:</label>
+  <input type="number" id="productQuantity" step="1" placeholder="Enter quantity">
+
+  <label for="productPrice">Price per Unit:</label>
+  <input type="number" id="productPrice" step="0.01" placeholder="Price per unit">
+
+  <div class="button-container">
+    <button onclick="addProduct()">Add Product</button>
+  </div>
+
+  <!-- Product Table -->
+  <table>
+    <thead>
+    <tr>
+      <th>Product Name</th>
+      <th>Type</th>
+      <th>Quantity</th>
+      <th>Price</th>
+      <th>Total</th>
+      <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody id="productList"></tbody>
+  </table>
+  <!-- Generate Button -->
+  <button onclick="generateInvoice()">Generate Invoice PDF</button>
+   <button onclick="saveInvoiceData()">Save Invoice Data</button>
+      <label for="loadInvoiceFile">Import Saved Invoice text data:</label>
+  <input type="file" id="loadInvoiceFile" accept=".txt">
+  <button onclick="loadInvoiceData()">Load Invoice Data</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+<script">
+const products = [];
+const currencies = [
+ { id: 1, code: "USD", name: "United States Dollar", symbol: "$" },
+  { id: 2, code: "EUR", name: "Euro", symbol: "€" },
+  { id: 3, code: "CNY", name: "Chinese Yuan", symbol: "¥" },
+  { id: 4, code: "JPY", name: "Japanese Yen", symbol: "¥" },
+  { id: 5, code: "GBP", name: "British Pound Sterling", symbol: "£" },
+  { id: 6, code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+  { id: 7, code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+  { id: 8, code: "AUD", name: "Australian Dollar", symbol: "A$" },
+  { id: 9, code: "INR", name: "Indian Rupee", symbol: "₹" }
+];
+let currencySymbol = "$"; // Default currency symbol
+
+function updateCurrencySymbol() {
+    const currencyId = parseInt(document.getElementById("currency").value, 10); // Get selected ID
+    const selectedCurrency = currencies.find(c => c.id === currencyId);
+
+    if (selectedCurrency) {
+        currencySymbol = selectedCurrency.symbol;
+    } else {
+        currencySymbol = "$"; // Default to USD symbol
+    }
+}
+
+window.onload = function() {
+    const currencySelect = document.getElementById("currency");
+
+    currencies.forEach(currency => {
+        const option = document.createElement("option");
+        option.value = currency.id; // Use the ID as value
+        option.innerText = `${currency.symbol} - ${currency.name}`;
+        currencySelect.appendChild(option);
+    });
+
+    // Set default selection
+    currencySelect.value = "1"; // Adjust if needed
+};
+
+  function addProduct() {
+    const productName = document.getElementById("productName").value || "N/A";
+    const productType = document.getElementById("productType").value || "N/A";
+    const productQuantity = parseInt(document.getElementById("productQuantity").value) || 0;
+    const productPrice = parseFloat(document.getElementById("productPrice").value) || 0;
+
+    const product = { productName, productType, productQuantity, productPrice };
+    products.push(product);
+    updateProductTable();
+  }
+
+  function updateProductTable() {
+  const tableBody = document.getElementById("productList");
+  tableBody.innerHTML = "";
+  products.forEach((product, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${product.productName}</td>
+      <td>${product.productType}</td>
+      <td>${product.productQuantity}</td>
+      <td>${currencySymbol}${product.productPrice.toFixed(2)}</td>
+      <td>${currencySymbol}${(product.productQuantity * product.productPrice).toFixed(2)}</td>
+      <td class="product-actions">
+        <button onclick="editProduct(${index})">Edit</button>
+        <button onclick="deleteProduct(${index})">Delete</button>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
+  function editProduct(index) {
+    const product = products[index];
+    document.getElementById("productName").value = product.productName;
+    document.getElementById("productType").value = product.productType;
+    document.getElementById("productQuantity").value = product.productQuantity;
+    document.getElementById("productPrice").value = product.productPrice;
+    products.splice(index, 1);
+    updateProductTable();
+  }
+
+  function deleteProduct(index) {
+    products.splice(index, 1);
+    updateProductTable();
+  }
+function generateInvoice() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+    let logoAdded = false;
+    let tableHeaderAdded = false; // Track if the table header is already added
+    // Currency
+    const currencyId = parseInt(document.getElementById("currency")?.value, 10) || 0;
+    const selectedCurrency = currencies.find(c => c.id === currencyId);
+    const currencySymbol = selectedCurrency ? selectedCurrency.symbol : "$";
+
+    // Company Info
+    const companyName = document.getElementById("companyName").value || "N/A";
+    const companyIBAN = document.getElementById("companyIBAN").value || "N/A";
+    const companyID = document.getElementById("companyID").value || "N/A";
+    const companyPhone = document.getElementById("companyPhone").value || "N/A";
+    const companyZIP = document.getElementById("companyZIP").value || "N/A";
+    const companyAddress = document.getElementById("companyAddress").value || "N/A";
+
+    // Client Info
+    const clientName = document.getElementById("clientName").value || "N/A";
+    const clientPhone = document.getElementById("clientPhone").value || "N/A";
+    const clientZIP = document.getElementById("clientZIP").value || "N/A";
+    const clientAddress = document.getElementById("clientAddress").value || "N/A";
+    const clientEmail = document.getElementById("clientEmail").value || "N/A";
+
+    // Invoice Info
+    const invoiceNumber = document.getElementById("invoiceNumber").value || "N/A";
+    const invoiceDate = document.getElementById("invoiceDate").value || "N/A";
+    const dueDate = document.getElementById("dueDate").value || "N/A";
+
+    // Financial Details
+    const serviceDescription = document.getElementById("serviceDescription").value || "N/A";
+    const serviceAmount = parseFloat(document.getElementById("serviceAmount").value) || 0;
+    const taxtype = document.getElementById("taxtype").value || "N/A";
+    const tax = parseFloat(document.getElementById("tax").value) || 0;
+    const total = products.reduce((sum, p) => sum + (p.productQuantity * p.productPrice), 0);
+    const taxAmount = (total + serviceAmount) * (tax / 100);
+    const grandTotal = total + serviceAmount + taxAmount;
+
+    // Images
+    const savedLogoPath = document.getElementById("logoPath").value;
+    const savedQRPath = document.getElementById("qrPath").value;
+
+    function savePDF() {
+        doc.save(`Invoice_${invoiceNumber}.pdf`);
+    }
+
+    function checkPageBreak(extraHeight = 10) {
+        if (y + extraHeight > 270) {
+            doc.addPage();
+            y = 20;
+        }
+    }
+
+    function addTableHeader() {
+        if (!tableHeaderAdded) {
+            doc.setFontSize(10).setFillColor(70, 130, 180).setTextColor(255, 255, 255);
+            doc.rect(20, y, 170, 8, "F");
+            doc.text("Product", 22, y + 5);
+            doc.text("Quantity", 100, y + 5);
+            doc.text("Unit Price", 120, y + 5);
+            doc.text("Total", 160, y + 5);
+            y += 10;
+            doc.setTextColor(0, 0, 0);
+            tableHeaderAdded = true; // Prevent header from being added again
+        }
+    }
+
+    function addInvoiceContent() {
+        y = 20;
+
+        // Add Logo
+        if (savedLogoPath && !logoAdded) {
+            const logoImg = new Image();
+            logoImg.src = savedLogoPath;
+            logoImg.onload = function () {
+                doc.addImage(logoImg, "PNG", 160, 10, 30, 30);
+                logoAdded = true;
+                drawContent();
+            };
+        } 
+        else {
+            drawContent();
+        }
+    }
+
+    function drawContent() {
+        doc.setFontSize(18).setFont("helvetica", "bold").text(companyName, 20, y);
+        doc.setFontSize(11).setFont("helvetica", "normal");
+        y += 10;
+        doc.text(`IBAN: ${companyIBAN} | Company ID: ${companyID}`, 20, y);
+        doc.text(`Phone: ${companyPhone} | ZIP: ${companyZIP}`, 20, y += 10);
+        doc.text(`Address: ${companyAddress}`, 20, y += 10);
+        
+        // Invoice Info
+        y += 10;
+        doc.setFontSize(13).setFont("helvetica", "bold").text("Invoice Details", 20, y);
+        doc.setFontSize(11).setFont("helvetica", "normal");
+        y += 10;
+        doc.text(`Invoice #: ${invoiceNumber}  |  Date: ${invoiceDate}  |  Due Date: ${dueDate}`, 20, y);
+        
+        // Client Info
+        y += 10;
+        doc.setFontSize(13).setFont("helvetica", "bold").text("Client Information", 20, y);
+        doc.setFontSize(11).setFont("helvetica", "normal");
+        y += 10;
+        doc.text(`Name: ${clientName} | Phone: ${clientPhone} | Email: ${clientEmail}`, 20, y);
+        doc.text(`ZIP: ${clientZIP} | Address: ${clientAddress}`, 20, y += 10);
+
+        // Service Description
+        y += 10;
+        doc.setFontSize(13).setFont("helvetica", "bold").text("Service Details", 20, y);
+        doc.setFontSize(11).setFont("helvetica", "normal");
+        y += 10;
+
+        let serviceLines = doc.splitTextToSize(serviceDescription, 170);
+        serviceLines.forEach(line => {
+            checkPageBreak(7);
+            doc.text(line, 20, y);
+            y += 7;
+        });
+
+        // Table Header and Data
+        y += 15;
+        addTableHeader();
+
+        products.forEach((product) => {
+            checkPageBreak(8);
+            doc.text(product.productName, 22, y + 5);
+            doc.text(String(product.productQuantity), 100, y + 5);
+            doc.text(`${currencySymbol}${product.productPrice.toFixed(2)}`, 120, y + 5);
+            doc.text(`${currencySymbol}${(product.productQuantity * product.productPrice).toFixed(2)}`, 160, y + 5);
+            y += 8;
+        });
+
+        y += 10;
+        let spaceRequired = 35; // Space needed for summary & QR code
+
+        if (savedQRPath) spaceRequired += 30; // QR code height
+
+        if (y + spaceRequired > 270) {
+            doc.addPage();
+            y = 20;
+        }
+
+        // Summary
+        doc.setFontSize(12);
+        doc.text(`Subtotal: ${currencySymbol}${(total + serviceAmount).toFixed(2)}`, 120, y);
+        doc.text(`Tax (${tax}%): ${currencySymbol}${taxAmount.toFixed(2)}`, 120, y += 7);
+        doc.text(`Tax Type: ${taxtype}`, 120, y += 7);
+        doc.setFontSize(13).setFont("helvetica", "bold").text(`Grand Total: ${currencySymbol}${grandTotal.toFixed(2)}`, 120, y += 10);
+
+        // QR Code
+        if (savedQRPath) {
+            y += -29;
+            const qrImg = new Image();
+            qrImg.src = savedQRPath;
+            qrImg.onload = function () {
+                doc.addImage(qrImg, "PNG", 20, y, 30, 30);
+                savePDF();
+            };
+        } else {
+            savePDF();
+        }
+    }
+
+    addInvoiceContent();
+}
+
+
+function loadInvoiceData() {
+  const fileInput = document.getElementById('loadInvoiceFile');
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      const fileContent = e.target.result;
+      try {
+        // Parse the content of the file into a JSON object
+        const data = JSON.parse(fileContent);
+
+        // Populate form fields with the loaded data
+        document.getElementById("companyName").value = data.companyName || '';
+        document.getElementById("companyIBAN").value = data.companyIBAN || '';
+        document.getElementById("companyID").value=data.companyID || '';
+        document.getElementById("companyPhone").value = data.companyPhone || '';
+        document.getElementById("companyZIP").value = data.companyZIP || '';
+        document.getElementById("companyAddress").value = data.companyAddress || '';
+        document.getElementById("clientName").value = data.clientName || '';
+        document.getElementById("clientPhone").value = data.clientPhone || '';
+        document.getElementById("clientZIP").value = data.clientZIP || '';
+        document.getElementById("clientAddress").value = data.clientAddress || '';
+        document.getElementById("clientEmail").value = data.clientEmail || '';
+        document.getElementById("invoiceNumber").value = data.invoiceNumber || '';
+        document.getElementById("invoiceDate").value = data.invoiceDate || '';
+        document.getElementById("dueDate").value = data.dueDate || '';
+        document.getElementById("serviceDescription").value = data.serviceDescription || '';
+        document.getElementById("serviceAmount").value = data.serviceAmount || '';
+        document.getElementById("tax").value = data.tax || '';
+        document.getElementById("taxtype").value= data.taxtype||'';
+        document.getElementById("logoPath").value = data.logoPath || '';
+        document.getElementById("qrPath").value = data.qrPath || '';
+
+                  if (data.logoPath) {
+                    document.getElementById("logoPath").src = data.logoPath;
+                    document.getElementById("logoPath").style.display = "block";
+                }
+                if (data.qrPath) {
+                    document.getElementById("qrPath").src = data.qrPath;
+                    document.getElementById("qrPath").style.display = "block";
+                }
+
+        // Load products into the table
+        if (data.products && Array.isArray(data.products)) {
+          products.length = 0;  // Clear existing products
+          products.push(...data.products);  // Populate with loaded products
+          updateProductTable(); // Update the product table
+        }
+
+      } catch (error) {
+        alert('Failed to load invoice data. Please ensure the file format is correct.');
+      }
+    };
+
+    // Read the file as text
+    reader.readAsText(file);
+  }
+}
+
+function saveInvoiceData() {
+  const invoiceData = {
+    companyName: document.getElementById("companyName").value || '',
+    companyIBAN: document.getElementById("companyIBAN").value || '',
+    companyID:document.getElementById("companyID").value || '',
+    companyPhone: document.getElementById("companyPhone").value || '',
+    companyZIP: document.getElementById("companyZIP").value || '',
+    companyAddress: document.getElementById("companyAddress").value || '',
+    clientName: document.getElementById("clientName").value || '',
+    clientPhone: document.getElementById("clientPhone").value || '',
+    clientZIP: document.getElementById("clientZIP").value || '',
+    clientAddress: document.getElementById("clientAddress").value || '',
+    clientEmail: document.getElementById("clientEmail").value || '',
+    invoiceNumber: document.getElementById("invoiceNumber").value || '',
+    invoiceDate: document.getElementById("invoiceDate").value || '',
+    dueDate: document.getElementById("dueDate").value || '',
+    serviceDescription: document.getElementById("serviceDescription").value || '',
+    serviceAmount: parseFloat(document.getElementById("serviceAmount").value) || 0,
+    tax: parseFloat(document.getElementById("tax").value) || 0,
+    taxtype:document.getElementById("taxtype").value || '',
+     logoPath: document.getElementById("logoPath").value || '',
+        qrPath: document.getElementById("qrPath").value || '',
+    products: products  // Assuming products are being tracked in an array
+  }; 
+  const jsonData = JSON.stringify(invoiceData, null, 2);
+  const blob = new Blob([jsonData], { type: 'application/json' });
+
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'invoiceData.txt'; // Name of the downloaded file
+  link.click();
+}
+
+</script>

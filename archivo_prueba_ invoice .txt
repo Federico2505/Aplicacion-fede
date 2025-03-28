@@ -1,0 +1,42 @@
+{
+  "companyName": "Nixver",
+  "companyIBAN": "ESB230030482942043933",
+  "companyID": "Y3239430D",
+  "companyPhone": "932543872",
+  "companyZIP": "08870",
+  "companyAddress": "carrer fleming 10",
+  "clientName": "Mercedes",
+  "clientPhone": "616973127",
+  "clientZIP": "08860",
+  "clientAddress": "carrer del flaix 24",
+  "clientEmail": "mercedes27@hotmail.com",
+  "invoiceNumber": "INV-26/03/2025",
+  "invoiceDate": "2025-03-26",
+  "dueDate": "2025-04-30",
+  "serviceDescription": "Servizio di meccanica motore v8 mercedes",
+  "serviceAmount": 100,
+  "tax": 15,
+  "taxtype": "Type: IRPF(10%) + IVA (5%)",
+  "logoPath": "C:\\Users\\feder\\OneDrive\\Desktop\\arc reactor\\cropped-VERSOVET_LOGO_PRINCIPAL_NEGRO_RGB.png",
+  "qrPath": "C:\\Users\\feder\\OneDrive\\Desktop\\arc reactor\\qr_eVacOK5wk14JgsE6ot.png",
+  "products": [
+    {
+      "productName": "Ceramic Brakes",
+      "productType": "Brakes",
+      "productQuantity": 5,
+      "productPrice": 10000
+    },
+    {
+      "productName": "pirelli wheels",
+      "productType": "wheels",
+      "productQuantity": 5,
+      "productPrice": 20000
+    },
+    {
+      "productName": "front lights mercedes",
+      "productType": "lights",
+      "productQuantity": 5,
+      "productPrice": 20000
+    }
+  ]
+}

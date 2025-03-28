@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Break-Even Analysis Tool</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css"/>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      color: #343a40;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2, h3 {
+      color: #007bff;
+      text-align: center;
+      margin-top: 25px;
+      margin-bottom: 20px;
+    }
+
+    #fileInput {
+      margin: 20px 0;
+      padding: 12px 16px;
+      border: 1px solid #ced4da;
+      border-radius: 8px;
+      background-color: #fff;
+      width: 300px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      font-size: 16px;
+    }
+
+    #dateSelector {
+      margin: 20px 0;
+      padding: 12px 16px;
+      border: 1px solid #ced4da;
+      border-radius: 8px;
+      background-color: #fff;
+      width: 250px;
+      font-size: 16px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #dataTable {
+      border-collapse: collapse;
+      width: 95%;
+      margin: 20px auto;
+      background-color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+
+    #dataTable thead th {
+      background-color: #007bff;
+      color: white;
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 2px solid #dee2e6;
+      font-weight: 600;
+    }
+
+    #dataTable tbody td {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    #dataTable tbody tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    #dataTable tbody tr:hover {
+      background-color: #f1f3f5;
+    }
+
+    #breakEvenChart, #salesOverTimeChart {
+      width: 95%;
+      height: 450px;
+      margin: 20px auto;
+      background-color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .refresh-button {
+      margin: 20px;
+      padding: 12px 24px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+
+    .refresh-button:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+<h2><i class="ph-bold ph-chart-line"></i> Break-Even Analysis Tool</h2>
+<input type="file" id="fileInput" accept=".xlsx">
+<label for="dateSelector">Select Date:</label>
+<select id="dateSelector"></select>
+<button class="refresh-button" onclick="location.reload()">Refresh Page</button>
+<h3><i class="ph-bold ph-table"></i> Data Table</h3>
+<table id="dataTable">
+  <thead>
+  <tr>
+    <th><i class="ph-bold ph-list-numbers"></i> Units</th>
+    <th><i class="ph-bold ph-coins"></i> Cost/Unit</th>
+    <th><i class="ph-bold ph-coins"></i> Sales Price</th>
+    <th><i class="ph-bold ph-house-line"></i> Fixed Costs</th>
+    <th><i class="ph-bold ph-calendar"></i> Date</th>
+  </tr>
+  </thead>
+  <tbody>
+  </tbody>
+</table>
+<h3><i class="ph-bold ph-chart-bar"></i> Break-Even Analysis</h3>
+<div class="chart-container">
+  <canvas id="breakEvenChart"></canvas>
+</div>
+<h3><i class="ph-bold ph-chart-line-up"></i> Break-Even Over Time</h3>
+<div class="chart-container">
+  <canvas id="salesOverTimeChart"></canvas>
+</div>
+<script>
+  // ... (rest of your JavaScript code remains the same)
+  document.getElementById('fileInput').addEventListener('change', function (event) {
+    const file = event.target.files[0];
+    if (!file) {
+      console.error("No file selected.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+
+        if (jsonData.length <= 1) {
+          console.warn("Excel file contains no data or only headers.");
+          alert("Please upload an Excel file with data.");
+          return;
+        }
+
+        const table = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
+        table.innerHTML = "";
+
+        const filteredData = jsonData.slice(1).filter(row => {
+          return row[0] != null && row[1] != null && row[2] != null && row[3] != null && row[4] != null &&
+            !isNaN(Number(row[0])) && !isNaN(Number(row[1])) && !isNaN(Number(row[2])) && !isNaN(Number(row[3])) &&
+            (row[4] instanceof Date || typeof row[4] === 'string');
+        }).map(row => {
+          const costPerUnit = Number(row[1]);
+          const salesPrice = Number(row[2]);
+          const fixedCosts = Number(row[3]);
+          return [
+            Number(row[0]),
+            costPerUnit,
+            salesPrice,
+            fixedCosts,
+            row[4]
+          ];
+        });
+
+        if (filteredData.length === 0) {
+          console.warn("No valid data rows found in the Excel file.");
+          alert("No valid data found in the Excel file.  Please check your data format.");
+          return;
+        }
+
+        // Insert the filtered data into the table
+        filteredData.forEach(row => {
+          const tr = document.createElement("tr");
+          row.forEach(cell => {
+            const td = document.createElement("td");
+            if (cell instanceof Date) {
+              td.textContent = cell.toLocaleDateString('en-US');
+            } else {
+              td.textContent = cell;
+            }
+            tr.appendChild(td);
+          });
+          table.appendChild(tr);
+        });
+
+        // Populate date selector
+        const dateSelector = document.getElementById('dateSelector');
+        dateSelector.innerHTML = '';
+        const uniqueDates = [...new Set(filteredData.map(row => {
+          if (row[4] instanceof Date) {
+            return row[4].toLocaleDateString('en-US');
+          }
+          return row[4];
+        }))];
+
+        if (uniqueDates.length === 0) {
+          console.warn("No dates found in the data.");
+          alert("No dates found in the data.  Please check your data.");
+          return;
+        }
+
+        uniqueDates.forEach(date => {
+          const option = document.createElement('option');
+          option.value = date;
+          option.textContent = date;
+          dateSelector.appendChild(option);
+        });
+
+        // Initial chart generation
+        dateSelector.value = uniqueDates[0];
+        updateCharts(filteredData, uniqueDates[0]);
+
+
+        // Event listener for date selection
+        dateSelector.addEventListener('change', function () {
+          updateCharts(filteredData, this.value);
+        });
+      } catch (error) {
+        console.error("Error processing file:", error);
+        alert("Error processing file.  Please check the file format and data.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  function updateCharts(data, selectedDate) {
+    const selectedDataForDate = data.filter(row => {
+      const rowDate = row[4];
+      const formattedRowDate = rowDate instanceof Date ? rowDate.toLocaleDateString('en-US') : rowDate;
+      return formattedRowDate === selectedDate;
+    });
+
+    if (selectedDataForDate.length === 0) {
+      console.warn('No data available for the selected date.');
+      const breakEvenChart = Chart.getChart("breakEvenChart");
+      const salesOverTimeChart = Chart.getChart("salesOverTimeChart");
+
+      if (breakEvenChart) {
+        breakEvenChart.destroy();
+      }
+      if (salesOverTimeChart) {
+        salesOverTimeChart.destroy();
+      }
+      alert('No data available for the selected date.');
+      return;
+    }
+
+    const units = selectedDataForDate.map(row => row[0]);
+    const costPerUnit = selectedDataForDate.map(row => row[1]);
+    const salesPrice = selectedDataForDate.map(row => row[2]);
+    const fixedCosts = selectedDataForDate.map(row => row[3]);
+    const dates = selectedDataForDate.map(row => row[4]);
+
+    const contributionMargin = salesPrice[0] - costPerUnit[0];
+    const breakEvenUnits =  fixedCosts[0] / contributionMargin;
+
+    generateBreakEvenChart(units, salesPrice[0], costPerUnit[0], fixedCosts[0], breakEvenUnits);
+    generateSalesOverTimeChart(data);
+  }
+
+  function generateBreakEvenChart(units, sellingPrice, variableCost, fixedCosts, breakEvenUnits) {
+    const maxUnits = Math.max(...units);
+    const labels = Array.from({ length: maxUnits + 1 }, (_, i) => i);
+    const totalRevenue = labels.map(x => x * sellingPrice);
+    const totalCost = labels.map(x => fixedCosts + (x * variableCost));
+    const fixedCostLine = labels.map(() => fixedCosts);
+
+    const ctx = document.getElementById('breakEvenChart').getContext('2d');
+    const existingChart = Chart.getChart("breakEvenChart");
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    const breakEvenRevenue = breakEvenUnits * sellingPrice;
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Total Revenue ($)',
+            data: totalRevenue,
+            borderColor: 'green',
+            fill: false,
+            pointRadius: 0
+          },
+          {
+            label: 'Total Cost ($)',
+            data: totalCost,
+            borderColor: 'red',
+            fill: false,
+            pointRadius: 0
+          },
+          {
+            label: 'Fixed Costs ($)',
+            data: fixedCostLine,
+            borderColor: 'purple',
+            fill: false,
+            pointRadius: 0,
+            lineDash: [5, 5]
+          },
+          {
+            label: 'Break-Even Point',
+            data: [{ x: breakEvenUnits, y: breakEvenRevenue }], // Corrected data point
+            borderColor: 'blue',
+            borderWidth: 2,
+            pointRadius: 10,
+            pointBackgroundColor: 'blue',
+            fill: false,
+            showLine: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        title: {
+          display: true,
+          text: 'Break-Even Analysis',
+          font: {
+            size: 16
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            position: 'bottom',
+            title: {
+              display: true,
+              text: 'Units Sold',
+              font: {
+                size: 14
+              }
+            },
+            ticks: {
+              callback: function (value) {
+                return value;
+              }
+            }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Revenue / Cost ($)',
+              font: {
+                size: 14
+              }
+            },
+            beginAtZero: true
+          }
+        },
+        plugins: {
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label === 'Break-Even Point') {
+                  label += ': ';
+                  label += 'Units: ' + context.parsed.x.toFixed(2) + ', ';
+                  label += 'Revenue: $' + context.parsed.y.toFixed(2);
+                  return label;
+                }
+                if (label === 'Total Revenue ($)' || label === 'Total Cost ($)' || label === 'Fixed Costs ($)') {
+                  label += ': $' + context.parsed.y.toFixed(2);
+                  return label;
+                }
+                return label;
+              }
+            }
+          },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: 'xy',
+            },
+            zoom: {
+              enabled: true,
+              mode: 'xy',
+              speed: 0.1,
+            }
+          },
+          annotation: {
+            annotations: [
+              {
+                type: 'line',
+                mode: 'vertical',
+                scaleID: 'x',
+                value: breakEvenUnits,
+                borderColor: 'blue',
+                borderWidth: 2,
+                label: {
+                  display: false,
+                  position: 'top',
+                  content: 'Break-Even Point'
+                }
+              },
+              {
+                type: 'point',
+                xValue: breakEvenUnits,
+                yValue: breakEvenRevenue, // Corrected yValue
+                radius: 10,
+                backgroundColor: 'blue',
+                label: {
+                  display: false,
+                  content: 'Break-Even Point',
+                  font: {
+                    size: 10
+                  },
+                  position: 'top'
+                }
+              }
+            ]
+          },
+          hover: {
+            mode: 'nearest',
+            intersect: true
+          }
+        }
+      }
+    });
+    chart.options.plugins.annotation.annotations.push({
+      type: 'label',
+      xValue: breakEvenUnits,
+      yValue: breakEvenRevenue + 10, // Corrected yValue
+      content: `Break-Even Units: ${breakEvenUnits.toFixed(2)}
+Break-Even Revenue: $${breakEvenRevenue.toFixed(2)}`,
+      font: {
+        size: 12
+      },
+      textAlign: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      color: '#fff',
+      borderRadius: 5,
+      padding: 5
+    });
+    chart.update();
+  }
+
+  function generateSalesOverTimeChart(data) {
+    const breakEvenData = data.map(row => {
+      const costPerUnit = row[1];
+      const salesPrice = row[2];
+      const fixedCosts = row[3];
+      const date = row[4];
+      const contributionMargin = salesPrice - costPerUnit;
+      const breakEvenUnits =  fixedCosts / contributionMargin ;
+      return { date: date, breakEvenUnits: breakEvenUnits };
+    });
+
+    const formattedDates = breakEvenData.map(item => {
+      const date = item.date;
+      return date instanceof Date ? date.toLocaleDateString('en-US') : date;
+    });
+
+    const sortedData = formattedDates.map((date, index) => ({
+      date: date,
+      breakEvenUnits: breakEvenData[index].breakEvenUnits
+    })).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+
+
+    const sortedDates = sortedData.map(item => item.date);
+    const sortedBreakEvenUnits = sortedData.map(item => item.breakEvenUnits);
+
+
+    const ctx = document.getElementById('salesOverTimeChart').getContext('2d');
+    const existingChart = Chart.getChart("salesOverTimeChart");
+    if (existingChart) {
+      existingChart.destroy();
+    }
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: sortedDates,
+        datasets: [
+          {
+            label: 'Break-Even Units',
+            data: sortedBreakEvenUnits,
+            borderColor: 'blue',
+            fill: false,
+            tension: 0.4,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        title: {
+          display: true,
+          text: "Break-Even Units Over Time",
+          font: {
+            size: 16
+          }
+        },
+        scales: {
+          x: {
+            type: 'category',
+            title: {
+              display: true,
+              text: 'Date',
+              font: {
+                size: 14
+              }
+            },
+            ticks: {
+              autoSkip: true,
+              maxRotation: 0,
+              minRotation: 0,
+            }
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Break-Even Units',
+              font: {
+                size: 14
+              }
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            mode: 'index',
+            intersect: false
+          },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: 'xy',
+            },
+            zoom: {
+              enabled: true,
+              mode: 'xy',
+              speed: 0.1,
+            }
+          }
+        },
+        hover: {
+          mode: 'nearest',
+          intersect: true
+        }
+      }
+    });
+  }
+</script>
+</body>
+</html>

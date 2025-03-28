@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editable Table with Excel and PDF Export</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #4A90E2;
+      margin-bottom: 20px;
+    }
+
+    /* Scrollable table container */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    /* Table Styling */
+    table {
+      width: auto;
+      border-collapse: collapse;
+      margin-top: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      font-size: 14px;
+      background-color: #fff;
+      table-layout: auto; /* Makes columns adapt to content */
+    }
+
+    /* Table Header and Cells */
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border: 1px solid #ddd;
+      min-width: 120px; /* Prevents columns from shrinking too much */
+       /* Limits excessive stretching */
+      word-wrap: break-word;
+      overflow-wrap: break-word; /* Ensures long words break */
+    }
+
+    th {
+      background-color: #4A90E2;
+      color: white;
+      font-weight: bold;
+      vertical-align: top;
+      text-align: left;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    td {
+      font-weight: lighter;
+      vertical-align: top;
+      text-align: left;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+
+    /* Alternate Row Colors */
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    tr:hover {
+      background-color: #e1f5fe;
+    }
+
+    /* Buttons */
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #4A90E2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #357ab7;
+    }
+
+    /* Input Fields */
+    input {
+      margin: 10px 0;
+      padding: 8px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .context-menu {
+      background-color: white;
+      border: 1px solid #ccc;
+      padding: 5px;
+      list-style: none;
+      margin: 0;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .context-menu li {
+      padding: 5px;
+      cursor: pointer;
+    }
+
+    .context-menu li:hover {
+      background-color: #f1f1f1;
+    }
+
+
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@7.1.2/build/index.min.js"></script>
+</head>
+<body>
+<h2>Create Table</h2>
+Rows: <input type="number" id="rows" min="1" max="20" value="3">
+Columns: <input type="number" id="columns" min="1" max="10" value="3">
+<div class="button-container">
+  <button id="create-table">Create Table</button>
+  <button id="download-table">Download as Excel</button>
+  <button id="download-pdf">Download as PDF</button>
+  <button id="add-row">Add Row</button>
+  <button id="add-column">Add Column</button>
+</div>
+
+<div class="button-container">
+  <input type="file" id="upload-excel" accept=".xlsx, .xls">
+</div>
+<div id="table-container"></div>
+<script>
+  // JavaScript code will go here
+  window.onload = function() {
+    const savedTable = localStorage.getItem('savedTable');
+    if (savedTable) {
+      createTableFromStorage(JSON.parse(savedTable));
+    }
+  }
+  function resetRowHeights() {
+    document.querySelectorAll('td').forEach(cell => {
+      cell.style.height = 'auto'; // Reset height for each cell
+    });
+  }
+
+  // Call this after creating/loading the table
+  document.addEventListener("DOMContentLoaded", function () {
+    resetRowHeights();
+  });
+
+
+  document.getElementById('create-table').addEventListener('click', function () {
+    const rows = document.getElementById('rows').value;
+    const columns = document.getElementById('columns').value;
+    createTable(rows, columns);
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const tableContainer = document.getElementById('table-container');
+
+    // Adjust header widths on page load
+    adjustHeaderWidths();
+
+    tableContainer.addEventListener('input', function (event) {
+      if (event.target.tagName === 'TH' || event.target.tagName === 'TD') {
+        adjustCellWidth(event.target);
+      }
+    });
+
+    function adjustCellWidth(cell) {
+      const span = document.createElement('span');
+      span.style.visibility = 'hidden';
+      span.style.whiteSpace = 'nowrap';
+      span.innerText = cell.innerText;
+      document.body.appendChild(span);
+      cell.style.width = span.offsetWidth + 10 + 'px'; // Add padding
+      document.body.removeChild(span);
+    }
+
+    function adjustHeaderWidths() {
+      const headers = document.querySelectorAll('th');
+      headers.forEach(header => {
+        const span = document.createElement('span');
+        span.style.visibility = 'hidden';
+        span.style.whiteSpace = 'nowrap';
+        span.innerText = header.innerText;
+        document.body.appendChild(span);
+        header.style.width = span.offsetWidth + 10 + 'px'; // Add padding
+        document.body.removeChild(span);
+      });
+    }
+
+    // ... (rest of your code)
+  });
+
+  function createTable(rows, columns) {
+    const container = document.getElementById('table-container');
+    container.innerHTML = '';
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+
+    const headerRow = document.createElement('tr');
+    for (let j = 0; j < columns; j++) {
+      const th = document.createElement('th');
+      th.innerText = `Column ${j + 1}`;
+      th.contentEditable = true;
+      headerRow.appendChild(th);
+    }
+    thead.appendChild(headerRow);
+
+    for (let i = 0; i < rows; i++) {
+      const row = document.createElement('tr');
+      for (let j = 0; j < columns; j++) {
+        const cell = document.createElement('td');
+        cell.contentEditable = true;
+        row.appendChild(cell);
+      }
+      tbody.appendChild(row);
+    }
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    container.appendChild(table);
+
+    saveTableToLocalStorage();
+  }
+  function createTableFromStorage(tableData) {
+    const container = document.getElementById('table-container');
+    container.innerHTML = '';
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+
+    // Create table headers
+    const headerRow = document.createElement('tr');
+    tableData[0].forEach(headerText => {
+      const th = document.createElement('th');
+      th.innerText = headerText;
+      th.contentEditable = true;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    // Create table rows
+    for (let i = 1; i < tableData.length; i++) {
+      const row = document.createElement('tr');
+      tableData[i].forEach(cellText => {
+        const cell = document.createElement('td');
+        cell.contentEditable = true;
+        cell.innerText = cellText;
+        row.appendChild(cell);
+      });
+      tbody.appendChild(row);
+    }
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    container.appendChild(table);
+
+    resetRowHeights(); // Reset row heights after loading
+  }
+
+  document.getElementById('download-table').addEventListener('click', function () {
+    const table = document.querySelector('table');
+    if (table) {
+      const workbook = XLSX.utils.book_new();
+      const ws = XLSX.utils.table_to_sheet(table);
+
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      ws['!cols'] = Array(range.e.c + 1).fill({ wpx: 150 });
+      ws['!rows'] = Array(range.e.r + 1).fill({ hpx: 20 });
+      ws['!autofilter'] = { ref: ws['!ref'] };
+
+      XLSX.utils.book_append_sheet(workbook, ws, 'Sheet1');
+      XLSX.writeFile(workbook, 'table.xlsx');
+    } else {
+      alert('Please create a table first.');
+    }
+  });
+
+
+  document.getElementById('download-pdf').addEventListener('click', function () {
+    const table = document.querySelector('table');
+    if (!table) {
+      alert('Please create a table first.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    const tableData = [];
+    const rows = table.querySelectorAll('tr');
+
+    // Extract table data (headers + rows)
+    rows.forEach(row => {
+      const rowData = [];
+      row.querySelectorAll('th, td').forEach(cell => {
+        let text = cell.innerText.replace(/\s+/g, ' ').trim();
+        rowData.push(text);
+      });
+      if (rowData.some(cell => cell !== "")) { // Only add non-empty rows
+        tableData.push(rowData);
+      }
+    });
+
+    if (tableData.length === 0) {
+      alert("Table is empty.");
+      return;
+    }
+
+    const fullHeaders = tableData[0]; // Extract headers
+    const fullBody = tableData.slice(1).filter(row => row.some(cell => cell !== "")); // Remove empty rows
+
+    const pageWidth = doc.internal.pageSize.width - 20; // Page width after margins
+    const pageHeight = doc.internal.pageSize.height - 40; // Page height after margins
+    const rowHeight = 8; // Estimated row height
+    const maxRowsPerPage = Math.floor(pageHeight / rowHeight); // Max rows per page
+
+    const columnWidths = [];
+    let totalWidth = 0;
+
+    // Calculate column widths based on max text width in each column
+    fullHeaders.forEach((_, i) => {
+      let colWidth = Math.max(
+        ...fullBody.map(row => doc.getTextWidth(row[i] || '') + 10),
+        doc.getTextWidth(fullHeaders[i]) + 10
+      );
+      columnWidths.push(colWidth);
+      totalWidth += colWidth;
+    });
+
+    // Ensure that columns are packed together (at least 3 per section)
+    let columnSections = [];
+    let startColumn = 0;
+    let accumulatedWidth = 0;
+    let headerCount = 0;
+
+    for (let i = 0; i < columnWidths.length; i++) {
+      accumulatedWidth += columnWidths[i];
+      headerCount++;
+
+      // If adding another column would exceed the width OR we reach the last column
+      if (accumulatedWidth > pageWidth || i === columnWidths.length - 1) {
+        // Ensure at least 3 headers per section
+        if (headerCount < 3 && columnSections.length > 0) {
+          columnSections[columnSections.length - 1].end = i + 1; // Merge with previous section
+        } else {
+          columnSections.push({ start: startColumn, end: i + 1 });
+        }
+        startColumn = i + 1;
+        accumulatedWidth = 0;
+        headerCount = 0;
+      }
+    }
+
+    // If the last section has less than 3 headers, merge with previous
+    if (columnSections.length > 1 && columnSections[columnSections.length - 1].end - columnSections[columnSections.length - 1].start < 3) {
+      columnSections[columnSections.length - 2].end = columnSections[columnSections.length - 1].end;
+      columnSections.pop();
+    }
+
+    // Split rows into sections that fit in one page
+    let rowSections = [];
+    let startRow = 0;
+
+    while (startRow < fullBody.length) {
+      const endRow = Math.min(startRow + maxRowsPerPage, fullBody.length);
+      rowSections.push({ start: startRow, end: endRow });
+      startRow = endRow;
+    }
+
+    // Generate the PDF pages
+    rowSections.forEach((rowSection, rowIndex) => {
+      columnSections.forEach((columnSection, colIndex) => {
+        if (colIndex > 0 || rowIndex > 0) doc.addPage(); // New page for each section
+
+        const subHeader = [fullHeaders.slice(columnSection.start, columnSection.end)];
+        const subBody = fullBody
+          .slice(rowSection.start, rowSection.end-1)
+          .map(row => row.slice(columnSection.start, columnSection.end))
+          .filter(row => row.some(cell => cell !== "")); // Remove any empty row sections
+
+        if (subBody.length > 0) { // Only generate a table if there is data
+          doc.autoTable({
+            head: subHeader,
+            body: subBody,
+            startY: 20,
+            styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', minCellHeight: 8 },
+            margin: { left: 10, right: 10 },
+            theme: 'grid',
+            didDrawPage: function (data) {
+              doc.text(`Page ${rowIndex + 1}-${colIndex + 1}`, data.settings.margin.left, 10);
+            }
+          });
+        }
+      });
+    });
+
+    // Save the generated PDF
+    doc.save('table.pdf');
+  });
+
+
+
+  document.getElementById('add-row').addEventListener('click', function() {
+    const table = document.querySelector('table');
+    if (table) {
+      const newRow = table.insertRow();
+      const columns = table.rows[0].cells.length;
+      for (let i = 0; i < columns; i++) {
+        const newCell = newRow.insertCell(i);
+        newCell.contentEditable = true;
+      }
+      saveTableToLocalStorage();
+    } else {
+      alert('Please create a table first.');
+    }
+  });
+
+  document.getElementById('add-column').addEventListener('click', function() {
+    const table = document.querySelector('table');
+    if (table) {
+      const rows = table.rows;
+
+      for (let i = 0; i < rows.length; i++) {
+        const cell = rows[i].insertCell(-1);
+
+        if (i === 0) {
+          cell.innerText = `Column ${rows[i].cells.length}`;
+          cell.contentEditable = true;
+          cell.style.backgroundColor = '#4A90E2';
+          cell.style.color = 'white';
+        } else {
+          cell.contentEditable = true;
+        }
+      }
+      saveTableToLocalStorage();
+    } else {
+      alert('Please create a table first.');
+    }
+  });
+
+  // ... (rest of your JavaScript code)
+
+  document.addEventListener('input', function(event) {
+    saveTableToLocalStorage();
+    if (event.target.tagName === 'TH') {
+      resetHeaderHeight(event.target); // Reset height for the edited header
+      adjustHeaderHeight(); // Adjust heights of all headers
+    }
+  });
+
+  function resetHeaderHeight(header) {
+    header.style.height = 'auto'; // Reset the height of the edited header
+  }
+
+  // Handle right-click (context menu) on rows and columns
+  document.addEventListener('contextmenu', function(event) {
+    const target = event.target;
+
+    // Check if the target is a table cell (td) or header cell (th)
+    if (target.tagName === 'TD' || target.tagName === 'TH') {
+      event.preventDefault(); // Prevent default right-click menu
+
+      const contextMenu = document.createElement('ul');
+      contextMenu.classList.add('context-menu');
+
+      const deleteRowOption = document.createElement('li');
+      deleteRowOption.innerText = 'Delete Row';
+      deleteRowOption.addEventListener('click', function() {
+        deleteRow(target);
+        contextMenu.remove(); // Close the menu after action
+      });
+
+      const deleteColumnOption = document.createElement('li');
+      deleteColumnOption.innerText = 'Delete Column';
+      deleteColumnOption.addEventListener('click', function() {
+        deleteColumn(target);
+        contextMenu.remove(); // Close the menu after action
+      });
+
+      contextMenu.appendChild(deleteRowOption);
+      contextMenu.appendChild(deleteColumnOption);
+
+      // Append the context menu to the body and position it
+      document.body.appendChild(contextMenu);
+      contextMenu.style.position = 'absolute';
+      contextMenu.style.left = `${event.pageX}px`;
+      contextMenu.style.top = `${event.pageY}px`;
+
+      // Close the context menu when clicking anywhere else
+      document.addEventListener('click', function closeContextMenu() {
+        contextMenu.remove();
+        document.removeEventListener('click', closeContextMenu); // Clean up
+      });
+    }
+  });
+
+  // Function to delete a row
+  function deleteRow(cell) {
+    const row = cell.closest('tr');
+    if (row) {
+      const table = document.querySelector('table');
+      if (table && table.rows.length > 1) {
+        table.deleteRow(row.rowIndex);
+        saveTableToLocalStorage();
+      } else {
+        alert('Cannot delete the last row.');
+      }
+    }
+  }
+
+  // Function to delete a column
+  function deleteColumn(cell) {
+    const table = document.querySelector('table');
+    if (table) {
+      const columnIndex = cell.cellIndex;
+      const rows = table.rows;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i].cells.length > columnIndex) {
+          rows[i].deleteCell(columnIndex);
+        }
+      }
+      saveTableToLocalStorage();
+    } else {
+      alert('Please create a table first.');
+    }
+  }
+
+  // Utility function to save the table data to localStorage
+  function saveTableToLocalStorage() {
+    const table = document.querySelector('table');
+    if (table) {
+      const data = [];
+      const rows = table.querySelectorAll('tr');
+      rows.forEach(row => {
+        const rowData = [];
+        row.querySelectorAll('th, td').forEach(cell => {
+          rowData.push(cell.innerText);
+        });
+        data.push(rowData);
+      });
+      localStorage.setItem('savedTable', JSON.stringify(data));
+    }
+  }
+
+  // ... (rest of your JavaScript code)
+  document.addEventListener('input', function(event) {
+    saveTableToLocalStorage();
+    if (event.target.tagName === 'DIV' && event.target.parentElement.tagName === 'TH') {
+      updateHeaderDivs(event.target.parentElement);
+      adjustHeaderHeight();
+    }
+  });
+
+  function updateHeaderDivs(th) {
+    const text = th.innerText;
+    const lines = text.split('\n');
+    th.innerHTML = '';
+    lines.forEach(line => {
+      const div = document.createElement('div');
+      div.contentEditable = true;
+      div.innerText = line;
+      th.appendChild(div);
+    });
+  }
+
+  function adjustHeaderHeight() {
+    const headers = document.querySelectorAll('th');
+    if (headers.length === 0) return;
+
+    let maxHeight = 0;
+    headers.forEach(header => {
+      header.style.height = 'auto';
+      maxHeight = Math.max(maxHeight, header.offsetHeight);
+    });
+
+    let allTrailingEmpty = true;
+    headers.forEach(header => {
+      const divs = header.querySelectorAll('div');
+      let allEmpty = true;
+
+      for (let i = divs.length - 1; i >= 0; i--) {
+        if (divs[i].innerText.trim() !== '') {
+          allEmpty = false;
+          break; // Stop checking if a non-empty div is found
+        }
+      }
+
+      if (!allEmpty) {
+        allTrailingEmpty = false;
+      }
+    });
+
+    if (allTrailingEmpty) {
+      headers.forEach(header => {
+        header.style.height = 'auto';
+      });
+    } else {
+      headers.forEach(header => {
+        header.style.height = `${maxHeight}px`;
+      });
+    }
+  }
+  // ... (rest of your JavaScript code)
+  document.getElementById('upload-excel').addEventListener('change', handleFileUpload);
+
+  function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+          header: 1,
+          raw: false, // Ensures proper formatting// Fills empty cells with an empty string
+        }).map(row => row.map(cell => String(cell))); // Convert everything to a string
+        displayExcelData(jsonData);
+      } catch (error) {
+        console.error("Error processing Excel file:", error);
+        if (error.message.includes("Unsupported file type")) {
+          alert("Unsupported Excel file format. Please use .xlsx or .xls.");
+        } else if (error.message.includes("Corrupted zip")) {
+          alert("The Excel file appears to be corrupted.");
+        } else {
+          alert("Error processing Excel file. Please check the file and try again.");
+        }
+      }
+    };
+    reader.onerror = function(error) {
+      console.error("Error reading file:", error);
+      alert("Error reading file.");
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ... (Your existing code)
+
+  function displayExcelData(data) {
+    console.log("Data:", data);
+    const container = document.getElementById('table-container');
+    container.innerHTML = '';
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+
+    if (data && data.length > 0) {
+      // Header Row
+      const headerRow = document.createElement('tr');
+      data[0].forEach(headerText => {
+        const th = document.createElement('th');
+        th.innerText = headerText; // Directly set text content
+        th.contentEditable = true; // Make the th editable
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      // Data Rows (remains the same)
+      for (let i = 1; i < data.length; i++) {
+        const rowData = data[i];
+        console.log("Row Data:", rowData);
+        if (rowData && Array.isArray(rowData)) {
+          const row = document.createElement('tr');
+          rowData.forEach(cellText => {
+            const cell = document.createElement('td');
+            cell.contentEditable = true;
+            cell.innerText = cellText === null || cellText === undefined ? '' : cellText;
+            row.appendChild(cell);
+          });
+          tbody.appendChild(row);
+        } else {
+          console.warn("Invalid row data:", rowData);
+        }
+      }
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      container.appendChild(table);
+
+      adjustHeaderWidths(); // Call function to adjust header widths
+      saveTableToLocalStorage();
+    } else {
+      alert("Excel file has no data");
+    }
+  }
+
+  // Function to adjust header widths
+  function adjustHeaderWidths() {
+    const headers = document.querySelectorAll('th');
+    headers.forEach(header => {
+      const span = document.createElement('span');
+      span.style.visibility = 'hidden';
+      span.style.whiteSpace = 'nowrap';
+      span.innerText = header.innerText;
+      document.body.appendChild(span);
+      header.style.width = span.offsetWidth + 10 + 'px'; // Add padding
+      document.body.removeChild(span);
+    });
+  }
+
+  // ... (Rest of your code, including the adjustCellWidth function)
+
+
+  function createHeaderDivs(th, text) {
+    th.innerHTML = ''; // Clear existing content
+    if (text === null || text === undefined) {
+      text = ''; // Handle null or undefined values
+    }
+    const lines = text.split('\n');
+    lines.forEach(line => {
+      const div = document.createElement('div');
+      div.contentEditable = true;
+      div.innerText = line;
+      th.appendChild(div);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    const downloadWordButton = document.createElement('button');
+    downloadWordButton.innerText = 'Download as Word';
+    downloadWordButton.style.backgroundColor = '#4A90E2';
+    downloadWordButton.style.color = 'white';
+    downloadWordButton.style.border = 'none';
+    downloadWordButton.style.padding = '10px 20px';
+    downloadWordButton.style.borderRadius = '5px';
+    downloadWordButton.style.cursor = 'pointer';
+    downloadWordButton.style.fontSize = '16px';
+
+    downloadWordButton.addEventListener('click', generateWordDoc);
+    document.querySelector('.button-container').appendChild(downloadWordButton);
+  });
+  async function generateWordDoc() {
+    const table = document.querySelector('table');
+    if (!table) {
+      alert('Please create a table first.');
+      return;
+    }
+    const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle, SectionType } = docx;
+    const rows = table.querySelectorAll('tr');
+    const tableData = [];
+    rows.forEach((row, rowIndex) => {
+      const cells = row.querySelectorAll('th, td');
+      const rowData = [];
+      cells.forEach((cell) => {
+        rowData.push(new TableCell({
+          children: [new Paragraph(cell.innerText)],
+          width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
+          shading: {
+            fill: rowIndex === 0 ? "4A90E2" : (rowIndex % 2 === 0 ? "f2f2f2" : "ffffff"),
+          },
+        }));
+      });
+      tableData.push(new TableRow({ children: rowData }));
+    });
+
+    const doc = new Document({
+      sections: splitTableIntoPages(tableData),
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "table.docx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  function splitTableIntoPages(tableData) {
+    const { Paragraph, Table, WidthType, BorderStyle, SectionType } = docx;
+    const maxRowsPerPage = 20; // Adjust as needed
+    const sections = [];
+    let currentPageRows = [];
+
+    tableData.forEach((row, index) => {
+      currentPageRows.push(row);
+
+      if (currentPageRows.length >= maxRowsPerPage || index === tableData.length - 1) {
+        sections.push({
+          properties: {
+            type: SectionType.NEXT_PAGE,
+          },
+          children: [
+            new Paragraph({ text: "Exported Table (Page " + (sections.length + 1) + ")", heading: "Heading1" }),
+            new Table({
+              rows: currentPageRows,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              borders: { top: { style: BorderStyle.NONE, size: 0 } }
+            }),
+          ],
+        });
+        currentPageRows = [];
+      }
+    });
+
+    return sections;
+  }
+  document.addEventListener('input', saveTableToLocalStorage);
+</script>
+</body>
+</html>

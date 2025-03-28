@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Merger & Reorder</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+</head>
+<body>
+
+<style>
+
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: black;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Container */
+.container {
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Headings */
+h1 {
+     font-family:  normal;
+      color: black;
+      text-align: center;
+      font-size: 3.5em;
+      margin-bottom: 40px;
+      letter-spacing: 1px;
+}
+
+/* File Upload Button */
+.file-label {
+    display: inline-block;
+    padding: 12px 20px;
+    background-color: #007bff;
+    color: white;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.file-label input {
+    display: none;
+}
+
+.file-label:hover {
+    background-color: #0056b3;
+}
+
+/* Preview Container */
+.preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    padding: 10px;
+    border: 2px dashed #007bff;
+    background-color: #f9f9f9;
+    min-height: 150px;
+    border-radius: 10px;
+    transition: background 0.3s;
+}
+
+.preview-container.dragover {
+    background-color: #e3f2fd;
+}
+
+/* Individual Page Preview */
+.pdf-page {
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    cursor: grab;
+    transition: transform 0.2s ease-in-out;
+}
+
+.pdf-page:hover {
+    transform: scale(1.05);
+}
+
+.pdf-page:active {
+    transform: scale(0.95);
+}
+
+/* Merge Button */
+.merge-btn {
+    margin-top: 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out;
+}
+
+.merge-btn:hover {
+    background-color: #0056b3;
+}
+</style>
+
+    <div class="container">
+        <h1> PDF Merger & Page Reorder</h1>
+
+        <!-- Upload Button -->
+        <label class="file-label">
+            <input id="pdf-input" type="file" multiple accept="application/pdf">
+             Click to Upload PDFs
+        </label>
+
+        <!-- Preview Section (Drag PDFs Here) -->
+        <h2>Arrange PDF Pages (Drag to Reorder or Add PDFs)</h2>
+        <div id="pdf-preview" class="preview-container" data-placeholder="Drop PDFs Here"></div>
+
+        <!-- Merge Button -->
+        <button id="merge-button" class="merge-btn"> Merge & Download</button>
+    </div>
+
+    <script">
+const { PDFDocument } = window.PDFLib;
+ 
+
+    
+document.getElementById('pdf-input').addEventListener('change', handleFileSelect);
+document.getElementById('merge-button').addEventListener('click', mergeAndDownloadPDF);
+const previewContainer = document.getElementById('pdf-preview');
+
+let pagesArray = [];
+
+// Handle file selection from input
+async function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    processFiles(files);
+}
+
+// Handle file dropping directly into preview area
+previewContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    previewContainer.classList.add('dragover');
+});
+
+previewContainer.addEventListener('dragleave', () => {
+    previewContainer.classList.remove('dragover');
+});
+
+previewContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    previewContainer.classList.remove('dragover');
+
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
+    if (files.length > 0) {
+        processFiles(files);
+    }
+});
+
+// Process uploaded files
+async function processFiles(files) {
+    for (const file of files) {
+        await extractPages(file);
+    }
+
+    setupDragAndDrop();
+}
+
+// Extract pages from PDF
+async function extractPages(file) {
+    const fileReader = new FileReader();
+    fileReader.readAsArrayBuffer(file);
+
+    fileReader.onload = async function () {
+        const pdfData = new Uint8Array(fileReader.result);
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+
+        for (let i = 0; i < pdf.numPages; i++) {
+            const page = await pdf.getPage(i + 1);
+            const viewport = page.getViewport({ scale: 0.5 });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.classList.add('pdf-page');
+            canvas.dataset.pageIndex = pagesArray.length;
+
+            const renderContext = { canvasContext: context, viewport: viewport };
+            await page.render(renderContext).promise;
+
+            previewContainer.appendChild(canvas);
+            pagesArray.push({ file, pageNum: i + 1, canvas });
+        }
+    };
+}
+
+// Enable drag and drop sorting
+function setupDragAndDrop() {
+    new Sortable(previewContainer, {
+        animation: 150,
+        onEnd: function () {
+            pagesArray = Array.from(previewContainer.children).map(canvas => {
+                return pagesArray.find(p => p.canvas === canvas);
+            });
+        }
+    });
+}
+
+// Merge and download PDF
+async function mergeAndDownloadPDF() {
+    const mergedPdf = await PDFDocument.create();
+
+    for (const pageInfo of pagesArray) {
+        const bytes = await pageInfo.file.arrayBuffer();
+        const pdf = await PDFDocument.load(bytes);
+        const copiedPage = await mergedPdf.copyPages(pdf, [pageInfo.pageNum - 1]);
+        mergedPdf.addPage(copiedPage[0]);
+    }
+
+    const pdfBytes = await mergedPdf.save();
+    downloadPDF(pdfBytes);
+}
+
+// Download merged PDF
+function downloadPDF(pdfBytes) {
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'merged.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+</body>
+</html>
